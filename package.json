@@ -1,0 +1,30 @@
+{
+    "name": "meshos",
+    "version": "1.0.0",
+    "description": "MeshOS - Browser-Based LAN Collaboration Operating System. Turns every connected browser into a virtual computer inside a shared peer-to-peer workspace.",
+    "main": "server/index.js",
+    "type": "commonjs",
+    "scripts": {
+      "start": "node server/index.js",
+      "dev": "node --watch server/index.js"
+    },
+    "keywords": [
+      "webrtc",
+      "lan",
+      "collaboration",
+      "p2p",
+      "websocket",
+      "file-transfer",
+      "whiteboard",
+      "virtual-desktop"
+    ],
+    "author": "MeshOS Contributors",
+    "license": "MIT",
+    "dependencies": {
+      "express": "^4.19.2",
+      "ws": "^8.17.1"
+    },
+    "engines": {
+      "node": ">=18.0.0"
+    }
+  }

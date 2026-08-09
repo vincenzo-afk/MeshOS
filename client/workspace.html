@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="windows" data-mode="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
+<title>MeshOS Workspace</title>
+<meta name="description" content="Your MeshOS workspace — a shared virtual desktop connecting every browser on this network." />
+<link rel="icon" href="/assets/icons/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/css/base.css" />
+<link rel="stylesheet" href="/css/themes.css" />
+<link rel="stylesheet" href="/css/desktop.css" />
+<link rel="stylesheet" href="/css/apps.css" />
+</head>
+<body class="workspace">
+
+  <!-- ===================== Boot screen ===================== -->
+  <div id="boot-screen">
+    <div class="boot-logo"></div>
+    <div class="boot-text" id="boot-status">Connecting to workspace…</div>
+  </div>
+
+  <!-- ===================== Desktop ===================== -->
+  <div id="desktop">
+    <div id="desktop-icons"></div>
+  </div>
+
+  <!-- ===================== Dock (macOS theme) ===================== -->
+  <div id="dock" class="glass"></div>
+
+  <!-- ===================== Taskbar ===================== -->
+  <div id="taskbar">
+    <button id="start-btn" title="Start"></button>
+    <button id="taskbar-search" title="Search apps"></button>
+    <div id="taskbar-apps"></div>
+    <div id="tray">
+      <button class="tray-btn" id="tray-room" title="Workspace info"></button>
+      <button class="tray-btn" id="tray-github" title="Star on GitHub"></button>
+      <button class="tray-btn" id="tray-notif" title="Notifications">
+        <span class="tray-badge" id="tray-notif-badge" style="display:none;"></span>
+      </button>
+      <button class="tray-btn" id="tray-quicksettings" title="Quick settings"></button>
+      <div id="tray-clock">--:--<span id="tray-date">---</span></div>
+    </div>
+  </div>
+
+  <!-- ===================== Start menu ===================== -->
+  <div id="start-menu" class="glass">
+    <div class="start-search">
+      <span id="start-search-icon"></span>
+      <input type="text" id="start-search-input" placeholder="Search apps…" autocomplete="off" />
+    </div>
+    <div class="app-grid" id="start-app-grid"></div>
+    <div class="start-footer">
+      <div class="user-chip">
+        <div class="avatar" id="start-user-avatar">?</div>
+        <div class="names">
+          <b id="start-user-name">—</b>
+          <small id="start-user-computer">—</small>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="start-leave-btn">Leave</button>
+    </div>
+  </div>
+
+  <!-- ===================== Notification center ===================== -->
+  <div id="notif-center" class="glass">
+    <h3>Notifications</h3>
+    <div class="notif-body"></div>
+    <button class="btn btn-ghost btn-sm" id="notif-clear-btn" style="align-self:flex-start;">Clear all</button>
+  </div>
+
+  <!-- ===================== Quick settings ===================== -->
+  <div id="quick-settings" class="glass">
+    <div class="qs-grid">
+      <button class="qs-toggle" id="qs-mode"></button>
+      <button class="qs-toggle" id="qs-lock"></button>
+      <button class="qs-toggle" id="qs-e2e"></button>
+    </div>
+    <div class="settings-section">
+      <h4>Theme</h4>
+      <div class="theme-swatches" id="qs-theme-swatches"></div>
+    </div>
+    <div class="settings-section">
+      <h4>Wallpaper</h4>
+      <div class="theme-swatches" id="qs-wallpaper-swatches"></div>
+    </div>
+  </div>
+
+  <!-- ===================== Toasts ===================== -->
+  <div id="toast-stack" class="toast-stack"></div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

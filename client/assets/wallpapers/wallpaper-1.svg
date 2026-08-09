@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B0D17"/>
+      <stop offset="45%" stop-color="#1E1B4B"/>
+      <stop offset="100%" stop-color="#3B2A6B"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="25%" cy="20%" r="60%">
+      <stop offset="0%" stop-color="#6C5CE7" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#6C5CE7" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="80%" cy="75%" r="55%">
+      <stop offset="0%" stop-color="#00CEC9" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#00CEC9" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#g1)"/>
+  <rect width="1920" height="1080" fill="url(#glow1)"/>
+  <rect width="1920" height="1080" fill="url(#glow2)"/>
+  <g stroke="#8B7CF6" stroke-opacity="0.14" stroke-width="1">
+    <line x1="0" y1="180" x2="1920" y2="180"/><line x1="0" y1="360" x2="1920" y2="360"/>
+    <line x1="0" y1="540" x2="1920" y2="540"/><line x1="0" y1="720" x2="1920" y2="720"/>
+    <line x1="0" y1="900" x2="1920" y2="900"/>
+    <line x1="240" y1="0" x2="240" y2="1080"/><line x1="480" y1="0" x2="480" y2="1080"/>
+    <line x1="720" y1="0" x2="720" y2="1080"/><line x1="960" y1="0" x2="960" y2="1080"/>
+    <line x1="1200" y1="0" x2="1200" y2="1080"/><line x1="1440" y1="0" x2="1440" y2="1080"/>
+    <line x1="1680" y1="0" x2="1680" y2="1080"/>
+  </g>
+  <circle cx="480" cy="320" r="3" fill="#00CEC9" opacity="0.7"/>
+  <circle cx="1300" cy="220" r="3" fill="#6C5CE7" opacity="0.7"/>
+  <circle cx="1600" cy="720" r="3" fill="#00CEC9" opacity="0.6"/>
+  <circle cx="820" cy="820" r="3" fill="#6C5CE7" opacity="0.6"/>
+  <line x1="480" y1="320" x2="1300" y2="220" stroke="#8B7CF6" stroke-opacity="0.3" stroke-width="1.5"/>
+  <line x1="1300" y1="220" x2="1600" y2="720" stroke="#8B7CF6" stroke-opacity="0.3" stroke-width="1.5"/>
+  <line x1="1600" y1="720" x2="820" y2="820" stroke="#8B7CF6" stroke-opacity="0.3" stroke-width="1.5"/>
+  <line x1="820" y1="820" x2="480" y2="320" stroke="#8B7CF6" stroke-opacity="0.3" stroke-width="1.5"/>
+</svg>

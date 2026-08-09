@@ -1,0 +1,158 @@
+/* MeshOS — base.css
+   Reset, typography, and root design tokens. Theme-specific tokens live in
+   themes.css and override the variables declared here. */
+
+   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+   *, *::before, *::after { box-sizing: border-box; }
+   
+   :root {
+     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+     --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+   
+     /* Default theme = MeshOS original identity (overridable per data-theme) */
+     --accent: #6C5CE7;
+     --accent-2: #00D2D3;
+     --accent-3: #FD79A8;
+     --danger: #FF5C5C;
+     --warning: #FFB020;
+     --success: #2ECC71;
+   
+     --bg-0: #0B0D17;
+     --bg-1: #12152357;
+     --surface: rgba(255, 255, 255, 0.06);
+     --surface-solid: #171A2B;
+     --surface-2: rgba(255, 255, 255, 0.1);
+     --border: rgba(255, 255, 255, 0.12);
+     --text-0: #F5F6FA;
+     --text-1: #B4B8CC;
+     --text-2: #7B7F99;
+   
+     --radius-sm: 8px;
+     --radius-md: 14px;
+     --radius-lg: 20px;
+     --radius-xl: 28px;
+   
+     --shadow-sm: 0 2px 10px rgba(0,0,0,0.25);
+     --shadow-md: 0 10px 40px rgba(0,0,0,0.35);
+     --shadow-lg: 0 25px 80px rgba(0,0,0,0.5);
+   
+     --blur: 22px;
+     --ease: cubic-bezier(0.16, 1, 0.3, 1);
+     --duration: 220ms;
+   }
+   
+   [data-mode="light"] {
+     --bg-0: #EEF0F7;
+     --surface: rgba(255, 255, 255, 0.65);
+     --surface-solid: #FFFFFF;
+     --surface-2: rgba(20, 20, 40, 0.05);
+     --border: rgba(20, 20, 40, 0.1);
+     --text-0: #14162B;
+     --text-1: #4B4F6B;
+     --text-2: #8285A0;
+     --shadow-sm: 0 2px 10px rgba(20,20,40,0.08);
+     --shadow-md: 0 10px 40px rgba(20,20,40,0.12);
+     --shadow-lg: 0 25px 80px rgba(20,20,40,0.18);
+   }
+   
+   html, body {
+     height: 100%;
+     margin: 0;
+     font-family: var(--font-sans);
+     color: var(--text-0);
+     background: var(--bg-0);
+     -webkit-font-smoothing: antialiased;
+     overflow: hidden;
+   }
+   
+   body { overflow: visible; }
+   
+   h1, h2, h3, h4, p { margin: 0; }
+   
+   a { color: inherit; text-decoration: none; }
+   
+   button {
+     font-family: inherit;
+     cursor: pointer;
+     border: none;
+     background: none;
+     color: inherit;
+   }
+   
+   input, textarea, select {
+     font-family: inherit;
+     color: inherit;
+     background: var(--surface-2);
+     border: 1px solid var(--border);
+     border-radius: var(--radius-sm);
+     padding: 10px 12px;
+     outline: none;
+     transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
+   }
+   
+   input:focus, textarea:focus, select:focus {
+     border-color: var(--accent);
+     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+   }
+   
+   ::-webkit-scrollbar { width: 10px; height: 10px; }
+   ::-webkit-scrollbar-track { background: transparent; }
+   ::-webkit-scrollbar-thumb {
+     background: var(--surface-2);
+     border-radius: 10px;
+     border: 2px solid transparent;
+     background-clip: padding-box;
+   }
+   ::-webkit-scrollbar-thumb:hover { background: var(--border); }
+   
+   .visually-hidden {
+     position: absolute; width: 1px; height: 1px;
+     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+   }
+   
+   .glass {
+     background: var(--surface);
+     backdrop-filter: blur(var(--blur)) saturate(160%);
+     -webkit-backdrop-filter: blur(var(--blur)) saturate(160%);
+     border: 1px solid var(--border);
+   }
+   
+   .gradient-text {
+     background: linear-gradient(120deg, var(--accent), var(--accent-2) 60%, var(--accent-3));
+     -webkit-background-clip: text;
+     background-clip: text;
+     color: transparent;
+   }
+   
+   /* ---------------------------------------------------------------------
+    * Shared form controls — used by both the landing page (create/join
+    * forms) and workspace dialogs (settings, modals), so they live here
+    * rather than in landing.css.
+    * --------------------------------------------------------------------- */
+   .form-row { display: grid; gap: 8px; }
+   .form-row label { font-size: 13px; font-weight: 600; color: var(--text-1); }
+   .form-row .hint { font-size: 12px; color: var(--text-2); }
+
+   .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-top: 1px solid var(--border); }
+   .toggle-row:first-of-type { border-top: none; }
+   .toggle-row .label { font-size: 14px; font-weight: 600; }
+   .toggle-row .desc { font-size: 12.5px; color: var(--text-2); margin-top: 2px; }
+
+   .switch { position: relative; width: 44px; height: 26px; flex-shrink: 0; }
+   .switch input { opacity: 0; width: 0; height: 0; }
+   .switch .track {
+     position: absolute; inset: 0; background: var(--surface-2); border: 1px solid var(--border);
+     border-radius: 999px; transition: background var(--duration) var(--ease); cursor: pointer;
+   }
+   .switch .track::before {
+     content: ''; position: absolute; width: 18px; height: 18px; border-radius: 50%;
+     background: white; top: 3px; left: 3px; transition: transform var(--duration) var(--ease);
+     box-shadow: var(--shadow-sm);
+   }
+   .switch input:checked + .track { background: var(--accent); }
+   .switch input:checked + .track::before { transform: translateX(18px); }
+
+   @media (prefers-reduced-motion: reduce) {
+     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+   }

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="windows" data-mode="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>MeshOS — Your LAN, One Shared Computer</title>
+<meta name="description" content="MeshOS turns every browser on your network into a virtual computer inside one collaborative, peer-to-peer workspace. No installs. No cloud storage. No accounts required." />
+<link rel="icon" href="/assets/icons/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/css/base.css" />
+<link rel="stylesheet" href="/css/themes.css" />
+<link rel="stylesheet" href="/css/landing.css" />
+</head>
+<body class="landing">
+
+  <div class="landing-bg" aria-hidden="true">
+    <div class="grid"></div>
+    <div class="orb o1"></div>
+    <div class="orb o2"></div>
+    <div class="orb o3"></div>
+  </div>
+
+  <nav class="nav">
+    <div class="brand"><span class="logo-dot"></span> MeshOS</div>
+    <div class="nav-links">
+      <a class="navlink" href="#how">How it works</a>
+      <a class="navlink" href="#features">Features</a>
+      <button class="icon-btn" id="theme-toggle-landing" title="Toggle light/dark" aria-label="Toggle light or dark mode"></button>
+      <a class="icon-btn" id="github-icon" href="#" target="_blank" rel="noopener noreferrer" title="Star MeshOS on GitHub" aria-label="Open GitHub repository"></a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="eyebrow glass"><span class="pulse-dot"></span> Peer-to-peer · No cloud storage · Encrypted</div>
+    <h1>Every browser on your network,<br class="hide-sm"/> <span class="gradient-text">one shared computer.</span></h1>
+    <p class="lead">MeshOS turns any LAN — or invited devices anywhere — into a single collaborative workspace. Chat, transfer files, share your clipboard, whiteboard, and screen, all sent directly browser-to-browser over encrypted WebRTC. Nothing ever touches a server.</p>
+    <div class="hero-actions">
+      <button class="btn btn-primary" id="hero-create-btn"><span class="btn-ico"></span> Create a Workspace</button>
+      <button class="btn btn-ghost" id="hero-join-btn">Join with a Code</button>
+    </div>
+    <div class="stat-strip">
+      <div><b id="stat-rooms">—</b>active workspaces</div>
+      <div><b id="stat-peers">—</b>connected devices</div>
+      <div><b>0 B</b>stored on our servers, ever</div>
+    </div>
+  </header>
+
+  <section class="panel-wrap" id="join-create-panel">
+    <div class="tabs glass" role="tablist">
+      <button class="tab-btn active" data-tab="create" role="tab" aria-selected="true">Create Workspace</button>
+      <button class="tab-btn" data-tab="join" role="tab" aria-selected="false">Join Workspace</button>
+    </div>
+
+    <!-- CREATE -->
+    <div class="tabpanel active card glass" id="tab-create">
+      <div class="form-grid">
+        <div class="two-col">
+          <div class="form-row">
+            <label for="create-username">Your name</label>
+            <input id="create-username" type="text" placeholder="e.g. Priya" maxlength="24" autocomplete="off" />
+          </div>
+          <div class="form-row">
+            <label for="create-computername">Computer name</label>
+            <input id="create-computername" type="text" placeholder="e.g. Priya's Laptop" maxlength="28" autocomplete="off" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label for="create-roomname">Workspace name</label>
+          <input id="create-roomname" type="text" placeholder="e.g. Design Team Standup" maxlength="48" autocomplete="off" />
+        </div>
+
+        <div class="toggle-row">
+          <div><div class="label">Password protect</div><div class="desc">Require a password to join this workspace</div></div>
+          <label class="switch"><input type="checkbox" id="create-password-toggle" /><span class="track"></span></label>
+        </div>
+        <div class="form-row" id="create-password-row" style="display:none;">
+          <input id="create-password" type="password" placeholder="Set a workspace password" autocomplete="off" />
+        </div>
+
+        <div class="toggle-row">
+          <div><div class="label">Require approval to join</div><div class="desc">You manually approve every new participant</div></div>
+          <label class="switch"><input type="checkbox" id="create-approval-toggle" /><span class="track"></span></label>
+        </div>
+
+        <div class="toggle-row">
+          <div><div class="label">End-to-end encrypt messages &amp; files</div><div class="desc">Uses AES-GCM with a key that never reaches the server</div></div>
+          <label class="switch"><input type="checkbox" id="create-e2e-toggle" checked /><span class="track"></span></label>
+        </div>
+
+        <button class="btn btn-primary btn-block" id="create-submit-btn"><span class="btn-ico"></span> Create Workspace</button>
+      </div>
+
+      <div id="create-result" style="display:none; margin-top:24px;">
+        <hr style="border:none;border-top:1px solid var(--border); margin-bottom:20px;" />
+        <div class="qr-result">
+          <div class="qr-box" id="qr-container"></div>
+          <div class="room-share-info">
+            <div class="room-code-display" id="room-code-text">------</div>
+            <div class="copy-row">
+              <input id="share-link-input" type="text" readonly />
+              <button class="btn btn-ghost btn-sm" id="copy-link-btn">Copy</button>
+            </div>
+            <button class="btn btn-primary btn-block" id="enter-workspace-btn" style="margin-top:14px;">Enter Workspace →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- JOIN -->
+    <div class="tabpanel card glass" id="tab-join">
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Room code</label>
+          <div class="join-code-input" id="join-code-input">
+            <input maxlength="1" data-i="0" />
+            <input maxlength="1" data-i="1" />
+            <input maxlength="1" data-i="2" />
+            <input maxlength="1" data-i="3" />
+            <input maxlength="1" data-i="4" />
+            <input maxlength="1" data-i="5" />
+          </div>
+          <div class="hint" style="text-align:center;">Or paste a full invite link — <input id="join-link-paste" type="text" placeholder="paste invite link here" style="width:100%;margin-top:8px;" /></div>
+        </div>
+        <div class="two-col">
+          <div class="form-row">
+            <label for="join-username">Your name</label>
+            <input id="join-username" type="text" placeholder="e.g. Priya" maxlength="24" autocomplete="off" />
+          </div>
+          <div class="form-row">
+            <label for="join-computername">Computer name</label>
+            <input id="join-computername" type="text" placeholder="e.g. Priya's Laptop" maxlength="28" autocomplete="off" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label for="join-password">Password <span class="hint">(only if the workspace requires one)</span></label>
+          <input id="join-password" type="password" placeholder="Leave blank if none" autocomplete="off" />
+        </div>
+        <button class="btn btn-primary btn-block" id="join-submit-btn">Join Workspace →</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="features" id="features">
+    <div class="feature-card glass"><div class="fi" data-icon="files"></div><h3>Direct P2P File Transfer</h3><p>Drag, drop, and send files or entire folders straight to any peer — chunked, resumable, and queued.</p></div>
+    <div class="feature-card glass"><div class="fi" data-icon="chat"></div><h3>Real-Time Chat</h3><p>Public rooms, DMs, threads, reactions, read receipts, and searchable history.</p></div>
+    <div class="feature-card glass"><div class="fi" data-icon="whiteboard"></div><h3>Collaborative Whiteboard</h3><p>Draw, sketch, and brainstorm together with pens, shapes, sticky notes, and live cursors.</p></div>
+    <div class="feature-card glass"><div class="fi" data-icon="clipboard"></div><h3>Shared Clipboard</h3><p>Broadcast copied text, links, and snippets to everyone — or just the people you choose.</p></div>
+    <div class="feature-card glass"><div class="fi" data-icon="screen"></div><h3>Screen Sharing</h3><p>Share a window, tab, or your whole screen with permission-based viewing.</p></div>
+    <div class="feature-card glass"><div class="fi" data-icon="topology"></div><h3>Live Network Map</h3><p>Watch your workspace's topology animate in real time, with latency and quality per link.</p></div>
+    <div class="feature-card glass"><div class="fi" data-icon="terminal"></div><h3>Collaborative Terminal</h3><p>A friendly, educational command line for exploring your mesh network together.</p></div>
+    <div class="feature-card glass"><div class="fi" data-icon="lock"></div><h3>Encrypted by Design</h3><p>WebRTC transport encryption plus optional AES-GCM end-to-end encryption — with zero server-side storage.</p></div>
+    <div class="feature-card glass"><div class="fi" data-icon="palette"></div><h3>Your Desktop, Your Style</h3><p>Windows, macOS, Ubuntu, Cyberpunk, Hacker, and Minimal themes, in light or dark.</p></div>
+  </section>
+
+  <footer class="landing-footer">
+    MeshOS is an open-source, browser-based LAN collaboration platform. No files are ever stored on the server.
+  </footer>
+
+  <div id="toast-stack" class="toast-stack"></div>
+
+  <script type="module" src="/js/landing.js"></script>
+</body>
+</html>
