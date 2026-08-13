@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<!-- Headless render harness: exercises the remote cursor / stroke preview
+     drawing code path in client/js/apps/whiteboard.js without a server or
+     WebRTC mesh. Run with:
+       chromium --headless=new --disable-gpu --window-size=800,600 --screenshot=tests/cursor-render.png --virtual-time-budget=2000 file://.../tests/render-cursor-harness.html
+     The harness prints HARNESS_OK / HARNESS_FAIL plus pixel assertions to the
+     console, and captures them via --dump-dom is NOT needed: results are
+     written into an on-page element for easy grepping. -->
+<head><meta charset="utf-8"><style>html,body{margin:0;height:100%;} #app-body{width:800px;height:600px;}</style></head>
+<body>
+<div id="app-body"></div>
+<div id="harness-log" style="position:fixed;top:0;left:0;color:#0f0;background:#000;padding:4px;z-index:9999;font:12px monospace;"></div>
+<script type="module">
+  const logEl = document.getElementById('harness-log');
+  const results = [];
+  function harnessOk(name, cond, extra = '') {
+    results.push({ name, pass: Boolean(cond), extra });
+    logEl.textContent += (cond ? 'PASS ' : 'FAIL ') + name + (extra ? '  ' + extra : '') + '\n';
+  }
+  const body = document.getElementById('app-body');
+
+  // ---- Intercept the peerManager 'message' handler BEFORE mount() installs
+  // it, so we can later drive setCursor / setStrokePreview through the real
+  // wire() logic exactly as the production client receives them. ----------
+  const messageHandlers = [];
+  const fakePeerManager = new Proxy({}, {
+    get: (_t, prop) => {
+      if (prop === 'on') return (evt, fn) => { if (evt === 'message') messageHandlers.push(fn); };
+      if (prop === 'broadcastJSON' || prop === 'sendJSON') return () => {};
+      return undefined;
+    },
+  });
+  const notifications = { toast: () => {} };
+  const modal = { confirmDialog: async () => false };
+  const windowManager = { on: () => {} };
+  const ctx = {
+    peerManager: fakePeerManager, notifications, modal, windowManager,
+    me: { username: 'Local Peer', computerName: 'harness-pc', avatar: '#4FD1C5' },
+  };
+
+  const mod = await import('../client/js/apps/whiteboard.js');
+  mod.mount(body, { id: 'win-1' }, ctx);
+  harnessOk('mount succeeded', !!document.getElementById('wb-canvas'));
+  await new Promise((r) => setTimeout(r, 150)); // let the ResizeObserver size the canvas
+
+  function emitMsg(peerId, msg) {
+    for (const h of messageHandlers) try { h(peerId, 'main', msg); } catch (e) {}
+  }
+
+  const canvas = document.getElementById('wb-canvas');
+  harnessOk('canvas rendered', canvas.width > 0 && canvas.height > 0, `${canvas.width}x${canvas.height}`);
+  const W = canvas.width, H = canvas.height;
+  // Keep test points well inside the canvas regardless of its final size.
+  const cx = Math.round(W * 0.45), cy = Math.round(H * 0.55);
+  const px = Math.round(W * 0.62), py = Math.round(H * 0.35);
+
+  // Simulate a second peer drawing a pen stroke preview near (cx, cy).
+  const previewOp = { id: 'prev-1', tool: 'pen', color: '#FF5C5C', width: 3, points: [] };
+  for (let i = 0; i < 6; i += 1) previewOp.points.push({ x: cx - 36 + i * 12, y: cy });
+  emitMsg('remote-peer-2', { type: 'wb:stroke-preview', x: cx, y: cy, username: 'Remote Peer 2', color: '#FF5C5C', tool: 'pen', op: previewOp });
+
+  // Simulate a third peer whose cursor rests at (px, py) with an arrow tool.
+  emitMsg('remote-peer-3', { type: 'wb:cursor', x: px, y: py, username: 'Remote Peer 3', color: '#6C8CFF', tool: 'arrow' });
+
+  await new Promise((r) => setTimeout(r, 150));
+
+  const c = canvas.getContext('2d');
+  const img = c.getImageData(0, 0, canvas.width, canvas.height);
+
+  function pixelName(imgData, x, y) {
+    const i = (Math.round(y) * imgData.width + Math.round(x)) * 4;
+    return [imgData.data[i], imgData.data[i + 1], imgData.data[i + 2]];
+  }
+
+  // Remote cursor 3 arrow head should be drawn at (px, py) in its color.
+  const [r3a, g3a, b3a] = pixelName(img, px + 3, py + 3);
+  harnessOk('remote cursor 3 arrow drawn (color near #6C8CFF)', Math.abs(r3a - 108) < 70 && Math.abs(g3a - 140) < 70 && Math.abs(b3a - 255) < 70, `rgb(${r3a},${g3a},${b3a}) at (${px + 3},${py + 3})`);
+
+  // Preview stroke: points along y=cy in #FF5C5C. The dashed line can leave
+  // gaps, so scan the whole line region instead of a single point.
+  function hasRedNear(imgData, x, y, bandX, bandY, radius) {
+    for (let dy = -radius; dy <= radius; dy += 1) {
+      for (let dx = -bandX; dx <= bandX; dx += 1) {
+        const i = ((y + dy) * imgData.width + (x + dx)) * 4;
+        if (imgData.data[i] > 130 && imgData.data[i + 1] < 110 && imgData.data[i + 2] < 110) return true;
+      }
+    }
+    return false;
+  }
+  const redFound = hasRedNear(img, cx, cy, 30, 0, 3);
+  harnessOk('preview stroke drawn (red #FF5C5C pixels near line)', redFound);
+
+  // Name tags: scan a window around/above each cursor for the peer color.
+  function hasColorNear(imgData, color, cx2, cy2, radius) {
+    const [cr, cg, cb] = color;
+    for (let dy = -radius; dy <= radius; dy += 2) {
+      for (let dx = -radius; dx <= radius; dx += 2) {
+        const i = ((cy2 + dy) * imgData.width + (cx2 + dx)) * 4;
+        if (Math.abs(imgData.data[i] - cr) < 50 && Math.abs(imgData.data[i + 1] - cg) < 50 && Math.abs(imgData.data[i + 2] - cb) < 50) return true;
+      }
+    }
+    return false;
+  }
+  harnessOk('remote cursor 3 name tag rendered (tag color near cursor)', hasColorNear(img, [108, 140, 255], px, py - 12, 30));
+  harnessOk('remote cursor 2 preview cursor tag rendered', hasColorNear(img, [255, 92, 92], cx, cy - 12, 30));
+
+  // Cleanup should remove a cursor: simulate wb:cursor-leave and redraw.
+  emitMsg('remote-peer-3', { type: 'wb:cursor-leave' });
+  await new Promise((r) => setTimeout(r, 100));
+  const img2 = c.getImageData(0, 0, canvas.width, canvas.height);
+  const gone = !hasColorNear(img2, [108, 140, 255], px, py - 12, 30);
+  harnessOk('wb:cursor-leave removes the remote cursor', gone);
+
+  const fails = results.filter((r) => !r.pass);
+  console.log(fails.length === 0 ? 'HARNESS_OK' : `HARNESS_FAIL ${fails.map((f) => f.name).join(', ')}`);
+</script>
+</body>
+</html>

@@ -15,7 +15,7 @@
  */
 import WebSocket from 'ws';
 
-const ROOM = process.argv[2] || '4QYQV5';
+let ROOM = process.argv[2] || '4QYQV5'; // replaced with the owner's actual room code if the room is auto-created (server generates its own code regardless of what the client sends)
 const TOKEN = process.argv[3] || '';
 const BASE = 'http://localhost:3000';
 const FAILURES = [];
@@ -27,19 +27,20 @@ function check(name, cond, extra = '') {
   else { log(`  FAIL  ${name}${extra ? '  ' + extra : ''}`); FAILURES.push(name); }
 }
 
-function makePeer(label, { ownerToken = '' } = {}) {
+function makePeer(label, { ownerToken, createsRoom = false } = {}) {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(`${BASE.replace('http', 'ws')}/ws`);
     const p = { label, id: null, __ws: ws, onMsg: [], close: () => ws.close() };
     ws.on('open', () => {
       // Defer the join message until the next tick so the caller has time to
       // register its listeners via register() / onMsg before any server
-      // response can arrive.
+      // response can arrive. The very first join (the owner) creates the room
+      // so a stale default room code in CI / a fresh server never hard-fails.
       setImmediate(() => {
         ws.send(JSON.stringify({
           type: 'join',
           roomCode: ROOM,
-          createIfMissing: false,
+          ...(createsRoom ? { createIfMissing: true } : {}),
           ...(ownerToken ? { ownerToken } : {}),
           meta: { username: `${label}-user`, computerName: `${label}-pc` },
         }));
@@ -92,7 +93,7 @@ async function run() {
 
   // --- 1. Owner joins and claims ownership ---
   log('1. Owner joins...');
-  const owner = await makePeer('owner', { ownerToken: TOKEN });
+  const owner = await makePeer('owner', { ownerToken: TOKEN, createsRoom: true });
   register(owner, 0);
   const ownerJoined = await waitFor(owner, (m) => m.type === 'joined' || m.type === 'error' || m.type === 'server-error');
   joinedMsgs[0] = ownerJoined;
@@ -100,12 +101,15 @@ async function run() {
   check('owner is admin (room.ownerId === peerId)', ownerJoined.room?.ownerId === ownerJoined.peerId,
     `ownerId=${ownerJoined.room?.ownerId} peerId=${ownerJoined.peerId}`);
   check('owner roster empty', Array.isArray(ownerJoined.roster) && ownerJoined.roster.length === 0, `roster=${JSON.stringify(ownerJoined.roster)}`);
+  // The server may have created a different room code than the one requested,
+  // so every later peer must join the code the owner actually landed in.
+  if (ownerJoined.room?.code) ROOM = ownerJoined.room.code;
 
   // --- 2. Two more peers join ---
   log('2. Peers joining...');
   const p2 = await makePeer('peer2');
   register(p2, 1);
-  const p2j = await waitFor(p2, (m) => m.type === 'joined' || m.type === 'error');
+  const p2j = await waitFor(p2, (m) => m.type === 'joined' || m.type === 'error' || m.type === 'server-error');
   joinedMsgs[1] = p2j;
   check('peer2 join succeeded', p2j.type === 'joined', `msg=${p2j.type}`);
 
@@ -167,15 +171,54 @@ async function run() {
   check('owner saw peer-left for peer3', leftSeen[0].has(p3j.peerId));
   check('peer2 saw peer-left for peer3', leftSeen[1].has(p3j.peerId));
 
-  // --- 7. Wrong owner token rejected ---
-  log('7. Wrong owner token rejection...');
+  // --- 7. Whiteboard cursor / preview channel relay ---
+  // Cursors and stroke previews travel as {type:'wb:*'} JSON over each peer
+  // pair's reliable 'main' data channel. In the real client, broadcastJSON()
+  // walks every peer and sendJSON()s over that channel; over the signaling
+  // wire the equivalent is sending {type:'signal', to, data:{wb:*}} to each
+  // target peer individually (the relay is unicast). Verify the shape of
+  // cursor, stroke-preview, cursor-leave and op-done messages survives the
+  // relay untouched and reaches the intended targets only.
+  log('7. wb:cursor channel relay...');
+  const wbGot = [[], [], []]; // per-peer received wb: messages
+  for (let i = 0; i < 3; i += 1) peerIds[i].onMsg.push((m) => {
+    if (m.type === 'signal' && String(m.data?.type || '').startsWith('wb:')) wbGot[i].push(m.data);
+  });
+  const sendWb = (fromIdx, toIdx, msg) => peerIds[fromIdx].__ws.send(JSON.stringify({ type: 'signal', to: joinedMsgs[toIdx].peerId, data: msg }));
+
+  // A real `wb:cursor` broadcast from peer2 reaches the owner via its
+  // dedicated channel (the client sends one signal per peer pair).
+  sendWb(1, 0, { type: 'wb:cursor', x: 123, y: 456, peerId: p2j.peerId, username: 'peer2-user', color: '#FF5C5C', tool: 'pen' });
+  await new Promise((r) => setTimeout(r, 600));
+  check('owner received wb:cursor from peer2', wbGot[0].some((m) => m.type === 'wb:cursor' && m.username === 'peer2-user' && m.x === 123));
+  check('peer2 does not see its own wb:cursor (no self-broadcast path)', !wbGot[1].some((m) => m.type === 'wb:cursor' && m.username === 'peer2-user'));
+
+  // wb:stroke-preview with an in-progress pen op payload must relay intact
+  // (the client-side guard that drops previews without an `op` payload is
+  // exercised in the browser render path; the signaling relay is a dumb
+  // per-target forwarder and must not inspect or modify the payload).
+  sendWb(1, 0, { type: 'wb:stroke-preview', x: 9, y: 10, peerId: p2j.peerId, username: 'peer2-user', color: '#FF5C5C', tool: 'pen', op: { id: 'op_preview', tool: 'pen', color: '#FF5C5C', width: 3, points: [{ x: 9, y: 10 }] } });
+  await new Promise((r) => setTimeout(r, 400));
+  check('owner received wb:stroke-preview with op payload', wbGot[0].some((m) => m.type === 'wb:stroke-preview' && m.op && m.op.points.length === 1));
+  check('preview op payload relayed unmodified', wbGot[0].find((m) => m.type === 'wb:stroke-preview')?.op?.points?.[0]?.x === 9);
+
+  // wb:op-done and wb:cursor-leave reach their target peer and only that peer.
+  sendWb(1, 0, { type: 'wb:op-done' });
+  sendWb(1, 0, { type: 'wb:cursor-leave' });
+  await new Promise((r) => setTimeout(r, 400));
+  check('owner received wb:op-done from peer2', wbGot[0].some((m) => m.type === 'wb:op-done'));
+  check('owner received wb:cursor-leave from peer2', wbGot[0].some((m) => m.type === 'wb:cursor-leave'));
+  check('wb: messages reached only the addressed target (peer3 got none of peer2->owner)', !wbGot[2].some((m) => ['wb:op-done', 'wb:cursor-leave'].includes(m.type)));
+
+  // --- 8. Wrong owner token rejected ---
+  log('8. Wrong owner token rejection...');
   const rogue = await makePeer('rogue', { ownerToken: '000000000000000000000000000000000000000000000000' });
   const rogueMsg = await waitFor(rogue, (m) => m.type === 'joined' || m.type === 'error' || m.type === 'server-error', 6000);
   check('rogue with wrong token did NOT join as owner',
     rogueMsg.type !== 'joined' || (rogueMsg.room?.ownerId !== rogueMsg.peerId), `msg=${rogueMsg.type}`);
   rogue.close();
 
-  // --- 8. Cleanup ---
+  // --- 9. Cleanup ---
   owner.close();
   p2.close();
   await new Promise((r) => setTimeout(r, 300));

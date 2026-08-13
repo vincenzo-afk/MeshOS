@@ -7,9 +7,17 @@
  * Anyone who already has a non-empty board pushes it to a peer the moment
  * that peer's data channel opens, so joining mid-session shows the
  * current board instead of a blank one.
+ *
+ * Live cursors: every peer broadcasts its pointer position (world
+ * coordinates) over the same reliable channel at a throttled rate while the
+ * mouse is over the canvas, plus its in-progress stroke as a dashed preview
+ * so collaborators see each other drawing in real time. Cursors fade out
+ * after a few seconds of inactivity and a `wb:cursor-leave` / `wb:op-done`
+ * message removes them immediately when the pointer exits or a stroke is
+ * committed.
  */
 import { getIcon } from '../utils/icons.js';
-import { clamp, uid, downloadBlob } from '../utils/helpers.js';
+import { clamp, uid, downloadBlob, throttle } from '../utils/helpers.js';
 
 const COLORS = ['#FFFFFF', '#FF5C5C', '#FFD93D', '#4FD1C5', '#6C8CFF', '#B892FF', '#000000'];
 const TOOLS = [
@@ -23,6 +31,63 @@ let ops = [];
 const myUndoStack = [];
 let wired = false;
 const renderers = new Set(); // canvas redraw functions per open window
+
+// ---- live cursors ----
+const remoteCursors = new Map(); // peerId -> { x, y, username, color, tool, lastSeen, timer }
+const remoteStrokes = new Map(); // peerId -> { op, timer } (in-progress stroke preview)
+const CURSOR_FADE_MS = 4000; // hide a cursor that hasn't moved for this long
+const CURSOR_THROTTLE_MS = 30; // max broadcast rate for cursor updates
+
+function setCursor(peerId, payload) {
+  const prev = remoteCursors.get(peerId);
+  if (prev) clearTimeout(prev.timer);
+  const entry = {
+    x: Number(payload.x) || 0,
+    y: Number(payload.y) || 0,
+    username: String(payload.username || '').slice(0, 32),
+    color: String(payload.color || '#FFFFFF').slice(0, 16),
+    tool: String(payload.tool || 'pen').slice(0, 16),
+    lastSeen: Date.now(),
+    timer: null,
+  };
+  entry.timer = setTimeout(() => { remoteCursors.delete(peerId); redrawAll(); }, CURSOR_FADE_MS);
+  remoteCursors.set(peerId, entry);
+  redrawAll();
+}
+
+function removeCursor(peerId) {
+  const entry = remoteCursors.get(peerId);
+  if (!entry) return;
+  clearTimeout(entry.timer);
+  remoteCursors.delete(peerId);
+  redrawAll();
+}
+
+function setStrokePreview(peerId, payload) {
+  const prev = remoteStrokes.get(peerId);
+  if (prev) clearTimeout(prev.timer);
+  const stroke = remoteCursors.get(peerId);
+  remoteStrokes.set(peerId, { op: payload.op, timer: setTimeout(() => { remoteStrokes.delete(peerId); redrawAll(); }, CURSOR_FADE_MS) });
+  if (!stroke) redrawAll();
+}
+
+function clearStrokePreview(peerId) {
+  const prev = remoteStrokes.get(peerId);
+  if (!prev) return;
+  clearTimeout(prev.timer);
+  remoteStrokes.delete(peerId);
+  redrawAll();
+}
+
+// Re-sync cursor presence to any peer whose data channel opens mid-session,
+// so a late joiner sees existing cursors as soon as they connect.
+function announcePresenceTo(peerId) {
+  if (!myCursor || !myCursor.active) return;
+  ctx.peerManager.sendJSON(peerId, {
+    type: 'wb:cursor', x: myCursor.x, y: myCursor.y,
+    username: ctx.me.username, color: ctx.me.avatar, tool: myCursor.tool,
+  });
+}
 
 function sanitizeOpForWire(op) {
   const sanitized = {};
@@ -45,6 +110,18 @@ function wire(ctx) {
   wired = true;
   ctx.peerManager.on('message', (peerId, label, msg) => {
     if (label !== 'main' || !String(msg.type || '').startsWith('wb:')) return;
+    if (msg.type === 'wb:cursor') {
+      setCursor(peerId, msg);
+    } else if (msg.type === 'wb:cursor-leave') {
+      removeCursor(peerId);
+      clearStrokePreview(peerId);
+    } else if (msg.type === 'wb:stroke-preview') {
+      if (!msg.op) return; // must carry a current-op payload
+      setCursor(peerId, msg); // update position + identity from the same packet
+      setStrokePreview(peerId, msg);
+    } else if (msg.type === 'wb:op-done') {
+      clearStrokePreview(peerId);
+    }
     if (msg.type === 'wb:add') {
       const op = msg.op;
       hydrateImageOp(op, redrawAll);
@@ -70,9 +147,12 @@ function wire(ctx) {
 
   // Catch up anyone who joins after the board already has content.
   ctx.peerManager.on('channel-open', (peerId, label) => {
-    if (label !== 'main' || ops.length === 0) return;
-    ctx.peerManager.sendJSON(peerId, { type: 'wb:sync', ops: ops.map(sanitizeOpForWire) });
+    if (label !== 'main') return;
+    if (ops.length > 0) ctx.peerManager.sendJSON(peerId, { type: 'wb:sync', ops: ops.map(sanitizeOpForWire) });
+    announcePresenceTo(peerId);
   });
+
+  ctx.peerManager.on('peer-disconnected', (peerId) => removeCursor(peerId));
 }
 
 function redrawAll() { renderers.forEach((r) => r()); }
@@ -138,6 +218,26 @@ export function mount(body, win, ctx) {
   let currentOp = null;
   let spacePan = false;
 
+  // Shared per-peer cursor presence so a late-joining peer can be announced
+  // to the next one that connects (used by announcePresenceTo in wire()).
+  const myCursor = { x: 0, y: 0, tool: 'pen', active: false };
+
+  // Broadcast cursor/preview at most once every CURSOR_THROTTLE_MS — pointer
+  // events fire far more often than that and the reliable channel would fill
+  // with redundant packets otherwise.
+  const broadcastPresence = throttle((kind) => {
+    if (!myCursor.active) return;
+    const msg = { type: kind, x: myCursor.x, y: myCursor.y, tool: myCursor.tool, username: ctx.me.username, color: ctx.me.avatar };
+    if (kind === 'wb:stroke-preview' && currentOp) msg.op = sanitizeOpForWire(currentOp);
+    ctx.peerManager.broadcastJSON(msg);
+  }, CURSOR_THROTTLE_MS);
+
+  const leaveBoard = () => {
+    if (!myCursor.active) return;
+    myCursor.active = false;
+    ctx.peerManager.broadcastJSON({ type: 'wb:cursor-leave' });
+  };
+
   function resize() {
     canvas.width = wrap.clientWidth;
     canvas.height = wrap.clientHeight;
@@ -158,8 +258,98 @@ export function mount(body, win, ctx) {
     cctx.fillRect(0, 0, canvas.width, canvas.height);
     cctx.setTransform(view.scale, 0, 0, view.scale, view.ox, view.oy);
     for (const op of ops) drawOp(op);
+    for (const [peerId, { op }] of remoteStrokes) drawPreviewStroke(peerId, op);
     if (currentOp) drawOp(currentOp);
+    for (const [peerId, c] of remoteCursors) drawRemoteCursor(peerId, c);
     zoomHud.textContent = `${Math.round(view.scale * 100)}%`;
+  }
+
+  // ---- remote cursor & preview rendering ----
+  function drawPreviewStroke(peerId, op) {
+    // Dimmer, dashed version of the peer's in-progress stroke so everyone can
+    // see where they are drawing before the committed op arrives.
+    const cursor = remoteCursors.get(peerId);
+    if (!cursor) return;
+    cctx.save();
+    cctx.globalAlpha = 0.55;
+    cctx.setLineDash([8, 6]);
+    if (op.tool === 'pen' || op.tool === 'eraser') {
+      cctx.strokeStyle = op.tool === 'eraser' ? '#12141c' : op.color;
+      cctx.lineWidth = op.tool === 'eraser' ? op.width * 4 : op.width;
+      cctx.lineJoin = 'round'; cctx.lineCap = 'round';
+      cctx.beginPath();
+      op.points.forEach((p, i) => (i === 0 ? cctx.moveTo(p.x, p.y) : cctx.lineTo(p.x, p.y)));
+      cctx.stroke();
+    } else if (['rect', 'circle', 'arrow'].includes(op.tool)) {
+      cctx.strokeStyle = op.color; cctx.lineWidth = op.width;
+      if (op.tool === 'rect') cctx.strokeRect(Math.min(op.x1, op.x2), Math.min(op.y1, op.y2), Math.abs(op.x2 - op.x1), Math.abs(op.y2 - op.y1));
+      else if (op.tool === 'circle') {
+        const rx = Math.abs(op.x2 - op.x1) / 2, ry = Math.abs(op.y2 - op.y1) / 2;
+        cctx.beginPath();
+        cctx.ellipse((op.x1 + op.x2) / 2, (op.y1 + op.y2) / 2, rx, ry, 0, 0, Math.PI * 2);
+        cctx.stroke();
+      } else {
+        cctx.beginPath(); cctx.moveTo(op.x1, op.y1); cctx.lineTo(op.x2, op.y2); cctx.stroke();
+      }
+    }
+    cctx.restore();
+  }
+
+  function drawRemoteCursor(peerId, c) {
+    const cursorSize = 12 / view.scale; // stays a consistent on-canvas size
+    cctx.save();
+    // Shadow + name tag so cursors read well over any stroke color.
+    cctx.shadowColor = 'rgba(0,0,0,0.45)';
+    cctx.shadowBlur = 6 / view.scale;
+    // Arrow head pointing down-left at the cursor point, like pointer apps.
+    cctx.fillStyle = c.color;
+    cctx.strokeStyle = '#000000';
+    cctx.lineWidth = 1.2 / view.scale;
+    cctx.beginPath();
+    cctx.moveTo(c.x, c.y);
+    cctx.lineTo(c.x + cursorSize, c.y + cursorSize * 0.35);
+    cctx.lineTo(c.x + cursorSize * 0.52, c.y + cursorSize * 0.52);
+    cctx.lineTo(c.x + cursorSize * 0.68, c.y + cursorSize);
+    cctx.closePath();
+    cctx.fill();
+    cctx.shadowBlur = 0;
+    cctx.stroke();
+    // Name tag above the cursor, in screen-space-stable lettering.
+    const labelFontPx = Math.max(10, Math.min(14, 13 / view.scale));
+    cctx.font = `600 ${labelFontPx}px system-ui, sans-serif`;
+    const textWidth = cctx.measureText(c.username).width;
+    const padX = 6 / view.scale, padY = 4 / view.scale;
+    const tagW = textWidth + padX * 2, tagH = labelFontPx + padY * 2;
+    const tagX = c.x - 2 / view.scale, tagY = c.y - cursorSize - tagH - 4 / view.scale;
+    cctx.fillStyle = c.color;
+    cctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    cctx.beginPath();
+    roundRect(cctx, tagX, tagY, tagW, tagH, 6 / view.scale);
+    cctx.fill();
+    cctx.stroke();
+    cctx.fillStyle = contrastTextColor(c.color);
+    cctx.textBaseline = 'middle';
+    cctx.fillText(c.username, tagX + padX, tagY + tagH / 2);
+    cctx.restore();
+  }
+
+  function roundRect(c, x, y, w, h, r) {
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  // Picks black or white label text based on label background luminance so
+  // the name tag is readable over both light and dark cursor colors.
+  function contrastTextColor(hex) {
+    const m = /#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(hex);
+    if (!m) return '#000000';
+    const [r, g, b] = [1, 2, 3].map((i) => parseInt(m[i], 16) / 255);
+    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return luminance > 0.55 ? '#111111' : '#FFFFFF';
   }
 
   function drawOp(op) {
@@ -217,6 +407,10 @@ export function mount(body, win, ctx) {
     ops.push(op);
     myUndoStack.push(op.id);
     ctx.peerManager.broadcastJSON({ type: 'wb:add', op: sanitizeOpForWire(op) });
+    // Tell peers the preview is done — the real committed op is on the way,
+    // so they can drop the dashed preview immediately instead of waiting for
+    // the same points to arrive and the fade timer to run out.
+    ctx.peerManager.broadcastJSON({ type: 'wb:op-done' });
     draw();
   }
 
@@ -255,6 +449,21 @@ export function mount(body, win, ctx) {
   }
   window.addEventListener('mousemove', onWindowMouseMove);
   window.addEventListener('mouseup', onWindowMouseUp);
+
+  // ---- live cursor broadcasting ----
+  function onCursorMove(e) {
+    const { x, y } = toWorld(e.clientX, e.clientY);
+    myCursor.x = x; myCursor.y = y; myCursor.tool = tool;
+    myCursor.active = true;
+    broadcastPresence('wb:stroke-preview');
+  }
+  function onCursorLeave() {
+    leaveBoard();
+    draw();
+  }
+  canvas.addEventListener('mousemove', onCursorMove);
+  canvas.addEventListener('mouseleave', onCursorLeave);
+  window.addEventListener('beforeunload', leaveBoard);
 
   function startPan(e) {
     const startX = e.clientX, startY = e.clientY, startOx = view.ox, startOy = view.oy;
@@ -323,6 +532,10 @@ export function mount(body, win, ctx) {
     window.removeEventListener('mouseup', onWindowMouseUp);
     window.removeEventListener('keydown', onWindowKeyDown);
     window.removeEventListener('keyup', onWindowKeyUp);
+    window.removeEventListener('beforeunload', leaveBoard);
+    canvas.removeEventListener('mousemove', onCursorMove);
+    canvas.removeEventListener('mouseleave', onCursorLeave);
+    leaveBoard();
   });
   resize();
 }
