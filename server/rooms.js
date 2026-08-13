@@ -79,8 +79,10 @@ class Room {
     };
   }
 
-  rosterJSON() {
-    return Array.from(this.participants.values()).map((p) => p.toPublicJSON());
+  rosterJSON(excludePeerId = null) {
+    return Array.from(this.participants.values())
+      .filter((p) => p.peerId !== excludePeerId)
+      .map((p) => p.toPublicJSON());
   }
 }
 

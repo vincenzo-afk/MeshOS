@@ -8,7 +8,7 @@
 import { GITHUB_REPO_URL, APP_DEFS, THEMES, WALLPAPERS } from './config.js';
 import { getIcon } from './utils/icons.js';
 import { formatClock, initialsOf, colorFromString, escapeHtml } from './utils/helpers.js';
-import { getIdentity, setIdentity, getRememberedDefaults, getPendingPassword, clearPendingPassword, getPendingOwnerToken, buildJoinMeta } from './utils/identity.js';
+import { getIdentity, setIdentity, getRememberedDefaults, getPendingPassword, clearPendingPassword, getPendingOwnerToken, clearPendingOwnerToken, buildJoinMeta } from './utils/identity.js';
 import { importKeyFromBase64 } from './utils/crypto.js';
 import { prefs, applyPrefs, setTheme, toggleMode, setWallpaper } from './ui/themes.js';
 import { WindowManager } from './ui/windowmanager.js';
@@ -135,6 +135,11 @@ async function attemptJoin() {
     const joined = await doJoin(password);
     return { joined, cryptoKey };
   } catch (err) {
+    // The one-time owner token is scoped to the room that created it. If it
+    // came from a different (now stale) workspace, every join attempt fails
+    // with a "waiting for host" error, so clear it here: the retry should
+    // join as a regular participant (or fail loudly instead of looping).
+    clearPendingOwnerToken();
     clearPendingPassword();
     const message = err?.message || 'Could not join workspace.';
     const needsPassword = /password/i.test(message);

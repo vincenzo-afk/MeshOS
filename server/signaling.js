@@ -172,7 +172,10 @@ function handleJoin(ws, msg, roomManager) {
       type: 'joined',
       peerId,
       room: room.toPublicJSON(),
-      roster: room.rosterJSON(),
+      // Send the newcomer a roster of everyone BUT themselves — the client
+      // opens a WebRTC connection to every roster entry, so including self
+      // would waste a connection attempt on their own peerId.
+      roster: room.rosterJSON(peerId),
     });
     broadcastToRoom(room, { type: 'peer-joined', participant: participant.toPublicJSON() }, peerId);
   };
@@ -235,7 +238,7 @@ function handleAdmin(ws, msg, roomManager) {
           type: 'joined',
           peerId: pending.peerId,
           room: room.toPublicJSON(),
-          roster: room.rosterJSON(),
+          roster: room.rosterJSON(pending.peerId),
         });
         broadcastToRoom(room, { type: 'peer-joined', participant: pending.toPublicJSON() }, pending.peerId);
       }
