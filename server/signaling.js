@@ -133,10 +133,15 @@ function handleJoin(ws, msg, roomManager) {
     return safeSend(ws, { type: 'join-error', message: 'This workspace is locked by the administrator.' });
   }
 
-  if (room.passwordHash && hashPassword(msg.password || '') !== room.passwordHash) {
+  const isFirstParticipant = room.participants.size === 0;
+  // A first participant holding the one-time ownerToken (issued by the
+  // REST create-room flow) is the room's real creator and bypasses the
+  // password check — the creator set the password at creation time and
+  // never types it back in. Everyone else must know the plaintext password.
+  const isClaimingOwner = isFirstParticipant && room.ownerToken && room.ownerToken === msg.ownerToken;
+  if (room.passwordHash && !isClaimingOwner && hashPassword(msg.password || '') !== room.passwordHash) {
     return safeSend(ws, { type: 'join-error', message: 'Incorrect workspace password.' });
   }
-
   if (room.participants.size >= config.ROOM_MAX_PARTICIPANTS) {
     return safeSend(ws, { type: 'join-error', message: 'Workspace is full.' });
   }
@@ -144,12 +149,10 @@ function handleJoin(ws, msg, roomManager) {
   const peerId = crypto.randomUUID();
   const participant = new Participant(peerId, ws, msg.meta || {});
 
-  const isFirstParticipant = room.participants.size === 0;
-
   // Refuse to hand out unauthorized ownership of a room that was reserved
   // via the REST create-room flow but whose real creator hasn't connected
   // yet (see the ownerToken comment in rooms.js).
-  if (isFirstParticipant && room.ownerToken && room.ownerToken !== msg.ownerToken) {
+  if (isFirstParticipant && room.ownerToken && !isClaimingOwner) {
     return safeSend(ws, {
       type: 'join-error',
       message: 'Waiting for the workspace host to finish connecting. Please try again in a moment.',
@@ -269,6 +272,9 @@ function handleAdmin(ws, msg, roomManager) {
         actor.isAdmin = false;
         target.isAdmin = true;
         room.ownerId = target.peerId;
+        // The fall-through broadcast below already notifies everyone; this
+        // comment documents that a transfer must never silently mutate
+        // ownership state so clients stay in sync.
       }
       break;
     }
