@@ -8,7 +8,7 @@
 // as a single constant so the "Star on GitHub" icon in the nav bar can be
 // re-pointed in one place.
 // ---------------------------------------------------------------------------
-export const GITHUB_REPO_URL = 'https://github.com/your-org/meshos';
+export const GITHUB_REPO_URL = 'https://github.com/vincenzo-afk/MeshOS';
 
 export const WS_PATH = '/ws';
 

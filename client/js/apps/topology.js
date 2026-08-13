@@ -3,7 +3,6 @@
  * Renders the full-mesh WebRTC graph as an SVG: one node per peer (plus
  * "you" in the center), with links colored/animated by connection quality.
  */
-import { getIcon } from '../utils/icons.js';
 import { initialsOf, escapeHtml } from '../utils/helpers.js';
 
 const QUALITY_COLOR = { excellent: 'var(--success)', good: 'var(--accent-2)', poor: 'var(--warning)', offline: 'var(--text-2)' };

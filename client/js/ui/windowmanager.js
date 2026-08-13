@@ -76,7 +76,7 @@ export class WindowManager extends Emitter {
     };
     this.windows.set(winId, winRecord);
 
-    this._wireChrome(winRecord, def);
+    this._wireChrome(winRecord);
     this._addTaskbarEntry(winRecord, def, opts.title);
 
     this.focus(winId);
@@ -91,7 +91,7 @@ export class WindowManager extends Emitter {
     return winRecord;
   }
 
-  _wireChrome(win, def) {
+  _wireChrome(win) {
     const { el } = win;
     const titlebar = el.querySelector('.win-titlebar');
     win._cleanupFns = [];

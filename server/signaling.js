@@ -71,7 +71,7 @@ function attachSignalingServer(server, roomManager) {
       } catch (_) {
         return safeSend(ws, { type: 'error', message: 'Malformed message.' });
       }
-      handleMessage(ws, msg, roomManager, wss);
+      handleMessage(ws, msg, roomManager);
     });
 
     ws.on('close', () => handleLeave(ws, roomManager));
@@ -96,7 +96,7 @@ function attachSignalingServer(server, roomManager) {
   return wss;
 }
 
-function handleMessage(ws, msg, roomManager, wss) {
+function handleMessage(ws, msg, roomManager) {
   switch (msg.type) {
     case 'join':
       return handleJoin(ws, msg, roomManager);

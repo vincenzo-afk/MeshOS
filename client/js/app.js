@@ -10,7 +10,7 @@ import { getIcon } from './utils/icons.js';
 import { formatClock, initialsOf, colorFromString, escapeHtml } from './utils/helpers.js';
 import { getIdentity, setIdentity, getRememberedDefaults, getPendingPassword, clearPendingPassword, getPendingOwnerToken, buildJoinMeta } from './utils/identity.js';
 import { importKeyFromBase64 } from './utils/crypto.js';
-import { prefs, applyPrefs, setTheme, setMode, toggleMode, setWallpaper } from './ui/themes.js';
+import { prefs, applyPrefs, setTheme, toggleMode, setWallpaper } from './ui/themes.js';
 import { WindowManager } from './ui/windowmanager.js';
 import { NotificationCenter } from './ui/notifications.js';
 import { showContextMenu } from './ui/contextmenu.js';

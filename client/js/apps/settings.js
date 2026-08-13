@@ -7,7 +7,7 @@
  */
 import { getIcon } from '../utils/icons.js';
 import { escapeHtml } from '../utils/helpers.js';
-import { setIdentity, getIdentity } from '../utils/identity.js';
+import { setIdentity } from '../utils/identity.js';
 import { prefs, setTheme, setMode, setWallpaper } from '../ui/themes.js';
 import { THEMES, WALLPAPERS } from '../config.js';
 

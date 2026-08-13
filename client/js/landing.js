@@ -128,6 +128,7 @@ document.getElementById('create-submit-btn').addEventListener('click', async () 
 
 document.getElementById('copy-link-btn').addEventListener('click', async () => {
   const input = document.getElementById('share-link-input');
+  input.focus();
   input.select();
   try {
     await navigator.clipboard.writeText(input.value);

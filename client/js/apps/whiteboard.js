@@ -25,8 +25,11 @@ let wired = false;
 const renderers = new Set(); // canvas redraw functions per open window
 
 function sanitizeOpForWire(op) {
-  const { _img, ...rest } = op;
-  return rest;
+  const sanitized = {};
+  for (const k of Object.keys(op)) {
+    if (k !== '_img') sanitized[k] = op[k];
+  }
+  return sanitized;
 }
 
 function hydrateImageOp(op, onLoaded) {

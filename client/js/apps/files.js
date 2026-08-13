@@ -19,7 +19,7 @@
  * silently corrupt each other's in-progress transfer.
  */
 import { getIcon } from '../utils/icons.js';
-import { escapeHtml, formatBytes, formatSpeed, formatDuration, uid, downloadBlob } from '../utils/helpers.js';
+import { escapeHtml, formatBytes, formatSpeed, formatDuration, downloadBlob } from '../utils/helpers.js';
 import { FILE_CHUNK_SIZE, DATACHANNEL_BUFFER_THRESHOLD } from '../config.js';
 import { encryptBuffer, decryptBuffer } from '../utils/crypto.js';
 

@@ -4,7 +4,7 @@
  * copy, and live sync to everyone in the workspace (debounced).
  */
 import { getIcon } from '../utils/icons.js';
-import { escapeHtml, debounce } from '../utils/helpers.js';
+import { debounce } from '../utils/helpers.js';
 
 const state = { code: '// Shared code snippet — anyone in this workspace can edit it.\n', language: 'javascript', updatedAt: 0 };
 let wired = false;
