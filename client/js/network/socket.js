@@ -33,8 +33,7 @@ export class MeshSocket extends Emitter {
   }
 
   _url() {
-    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${location.host}${WS_PATH}`;
+    return `wss://meshos-backend.onrender.com${WS_PATH}`;
   }
 
   /**

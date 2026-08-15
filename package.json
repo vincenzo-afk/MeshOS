@@ -5,26 +5,27 @@
     "main": "server/index.js",
     "type": "commonjs",
     "scripts": {
-      "start": "node server/index.js",
-      "dev": "node --watch server/index.js"
+        "start": "node server/index.js",
+        "dev": "node --watch server/index.js"
     },
     "keywords": [
-      "webrtc",
-      "lan",
-      "collaboration",
-      "p2p",
-      "websocket",
-      "file-transfer",
-      "whiteboard",
-      "virtual-desktop"
+        "webrtc",
+        "lan",
+        "collaboration",
+        "p2p",
+        "websocket",
+        "file-transfer",
+        "whiteboard",
+        "virtual-desktop"
     ],
     "author": "MeshOS Contributors",
     "license": "MIT",
     "dependencies": {
-      "express": "^4.19.2",
-      "ws": "^8.17.1"
+        "cors": "^2.8.6",
+        "express": "^4.19.2",
+        "ws": "^8.17.1"
     },
     "engines": {
-      "node": ">=18.0.0"
+        "node": ">=18.0.0"
     }
-  }
+}

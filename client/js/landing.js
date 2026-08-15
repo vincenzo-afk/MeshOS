@@ -56,7 +56,7 @@ document.getElementById('hero-join-btn').addEventListener('click', () => {
 // ---------- Live stats ----------
 async function pollStats() {
   try {
-    const res = await fetch('/api/stats');
+    const res = await fetch('https://meshos-backend.onrender.com/api/stats');
     const data = await res.json();
     document.getElementById('stat-rooms').textContent = data.totalRooms ?? 0;
     document.getElementById('stat-peers').textContent = data.totalParticipants ?? 0;
@@ -90,7 +90,7 @@ document.getElementById('create-submit-btn').addEventListener('click', async () 
   btn.textContent = 'Creating…';
 
   try {
-    const res = await fetch('/api/rooms', {
+    const res = await fetch('https://meshos-backend.onrender.com/api/rooms', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: roomName || undefined, password: password || undefined, requireApproval }),
@@ -193,7 +193,7 @@ document.getElementById('join-submit-btn').addEventListener('click', async () =>
   btn.textContent = 'Checking…';
 
   try {
-    const res = await fetch(`/api/rooms/${code}`);
+    const res = await fetch(`https://meshos-backend.onrender.com/api/rooms/${code}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Workspace not found.');

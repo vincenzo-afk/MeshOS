@@ -14,6 +14,7 @@ const https = require('https');
 const dns = require('dns').promises;
 const net = require('net');
 const express = require('express');
+const cors = require('cors');
 const crypto = require('crypto');
 
 const config = require('./config');
@@ -21,6 +22,7 @@ const { RoomManager } = require('./rooms');
 const { attachSignalingServer } = require('./signaling');
 
 const app = express();
+app.use(cors());
 app.use(express.json({ limit: '16kb' }));
 
 // ---- Minimal in-memory rate limiter (per IP, sliding window) -------------

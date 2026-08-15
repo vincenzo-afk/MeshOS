@@ -41,7 +41,7 @@ function wire(ctx) {
 
 async function fetchPreview(url) {
   try {
-    const res = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`);
+    const res = await fetch(`https://meshos-backend.onrender.com/api/link-preview?url=${encodeURIComponent(url)}`);
     if (!res.ok) return null;
     return await res.json();
   } catch (_err) {
