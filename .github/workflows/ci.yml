@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    - run: npm install
+    - name: Run Tests
+      run: |
+        # Start server in background
+        npm start &
+        # Wait for server to be ready
+        sleep 5
+        # Run simulators
+        node tests/multi-peer-sync.mjs
+        node tests/multi-feature.mjs
+  
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+    - run: npm install
+    - name: Run ESLint
+      run: npx eslint --env es2022 --no-eslintrc --parser-options '{"ecmaVersion":2022,"sourceType":"module"}' client/js/ server/ tests/

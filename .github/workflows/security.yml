@@ -1,0 +1,22 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * 1'
+
+jobs:
+  njsscan:
+    runs-on: ubuntu-latest
+    name: njsscan code scan
+    steps:
+    - name: Checkout the code
+      uses: actions/checkout@v4
+    - name: nodejsscan scan
+      id: njsscan
+      uses: ajinabraham/njsscan-action@v0.0.3
+      with:
+        args: '.'
